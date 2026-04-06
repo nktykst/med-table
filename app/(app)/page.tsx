@@ -24,6 +24,7 @@ export default function TimetablePage() {
   const [currentWeekStart, setCurrentWeekStart] = useState<string>(
     format(new Date(), "yyyy-MM-dd")
   );
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
@@ -35,9 +36,8 @@ export default function TimetablePage() {
   }
 
   function handleBulkDone() {
-    const t = jumpDate ?? "__refresh__";
-    setJumpDate(t);
-    setTimeout(() => setJumpDate(undefined), 0);
+    // refreshKey を変えて remount しつつ、現在の週に留まる
+    setRefreshKey((k) => k + 1);
   }
 
   function handleImportDone() {
@@ -90,8 +90,8 @@ export default function TimetablePage() {
       <div className="flex-1 overflow-hidden">
         {view === "week" ? (
           <TimetableGrid
-            key={jumpDate}
-            initialDate={jumpDate}
+            key={`${jumpDate ?? ""}-${refreshKey}`}
+            initialDate={jumpDate ?? currentWeekStart}
             onBulkRegister={(day, period) => {
               setBulkInitDay(day);
               setBulkInitPeriod(period);
