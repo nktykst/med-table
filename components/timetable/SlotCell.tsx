@@ -6,6 +6,7 @@ import { Wifi, Ban, Plus } from "lucide-react";
 
 type Props = {
   slot: ResolvedSlot;
+  editMode?: boolean;
   onClick: () => void;
 };
 
@@ -15,8 +16,11 @@ const ATTENDANCE_COLORS = {
   absent: "ring-2 ring-red-400 opacity-60",
 };
 
-export function SlotCell({ slot, onClick }: Props) {
+export function SlotCell({ slot, editMode = false, onClick }: Props) {
   if (!slot.subject) {
+    if (!editMode) {
+      return <div className="w-full h-full min-h-[64px]" />;
+    }
     return (
       <button
         onClick={onClick}

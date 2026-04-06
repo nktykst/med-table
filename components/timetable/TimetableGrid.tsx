@@ -78,10 +78,12 @@ type Assignment = {
 
 export function TimetableGrid({
   initialDate,
+  editMode = false,
   onBulkRegister,
   onWeekChange,
 }: {
   initialDate?: string;
+  editMode?: boolean;
   onBulkRegister?: (dayOfWeek: number, period: number) => void;
   onWeekChange?: (weekId: string | null, label: string, startDate: string) => void;
 }) {
@@ -371,6 +373,7 @@ export function TimetableGrid({
                     <div key={day} className="min-h-[64px]">
                       <SlotCell
                         slot={getSlot(day, period)}
+                        editMode={editMode}
                         onClick={() => {
                           setSelectedCell({ dayOfWeek: day, period });
                           setDrawerOpen(true);

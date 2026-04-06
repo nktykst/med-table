@@ -6,7 +6,7 @@ import { TimetableGrid } from "@/components/timetable/TimetableGrid";
 import { MonthView } from "@/components/timetable/MonthView";
 import { BulkRegisterDrawer } from "@/components/timetable/BulkRegisterDrawer";
 import { ShareDrawer } from "@/components/timetable/ShareDrawer";
-import { CalendarDays, CalendarRange, ListPlus, Share2 } from "lucide-react";
+import { CalendarDays, CalendarRange, ListPlus, Share2, Pencil, Check } from "lucide-react";
 
 type View = "week" | "month";
 type Subject = { id: string; name: string; color: string };
@@ -24,6 +24,7 @@ export default function TimetablePage() {
     format(new Date(), "yyyy-MM-dd")
   );
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
@@ -67,7 +68,6 @@ export default function TimetablePage() {
         </button>
 
         <div className="ml-auto flex items-center gap-1">
-          {/* 共有ボタン */}
           <button
             onClick={() => setShareOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
@@ -75,14 +75,32 @@ export default function TimetablePage() {
             <Share2 className="w-4 h-4" />
             共有
           </button>
-          {/* 一括登録ボタン */}
-          <button
-            onClick={() => setBulkOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <ListPlus className="w-4 h-4" />
-            一括登録
-          </button>
+          {editMode ? (
+            <>
+              <button
+                onClick={() => setBulkOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                <ListPlus className="w-4 h-4" />
+                一括
+              </button>
+              <button
+                onClick={() => setEditMode(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                <Check className="w-4 h-4" />
+                完了
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setEditMode(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              <Pencil className="w-4 h-4" />
+              編集
+            </button>
+          )}
         </div>
       </div>
 
@@ -91,6 +109,7 @@ export default function TimetablePage() {
           <TimetableGrid
             key={`${jumpDate ?? ""}-${refreshKey}`}
             initialDate={jumpDate ?? currentWeekStart}
+            editMode={editMode}
             onBulkRegister={(day, period) => {
               setBulkInitDay(day);
               setBulkInitPeriod(period);
