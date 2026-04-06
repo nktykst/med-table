@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { ChevronRight, BookOpen, Calendar, LogOut, Plus, Pencil } from "lucide-react";
+import { ChevronRight, BookOpen, Calendar, LogOut, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,11 +40,6 @@ export default function SettingsPage() {
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [patterns, setPatterns] = useState<WeekPattern[]>([]);
   const [editWeek, setEditWeek] = useState<Week | null>(null);
-  const [addDialog, setAddDialog] = useState(false);
-
-  // Add week form
-  const [newStartDate, setNewStartDate] = useState("");
-  const [newWeekNumber, setNewWeekNumber] = useState("");
 
   // Edit form
   const [editLabel, setEditLabel] = useState("");
@@ -83,34 +78,12 @@ export default function SettingsPage() {
     setWeeks((prev) =>
       prev.map((w) =>
         w.id === editWeek.id
-          ? {
-              ...updated,
-              patternName: patterns.find((p) => p.id === (editPatternId || null))?.name ?? null,
-            }
+          ? { ...updated, patternName: patterns.find((p) => p.id === editPatternId)?.name ?? null }
           : w
       )
     );
     setSaving(false);
     setEditWeek(null);
-  }
-
-  async function addWeek(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    const res = await fetch("/api/weeks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        weekNumber: parseInt(newWeekNumber),
-        startDate: newStartDate,
-      }),
-    });
-    const w = await res.json();
-    setWeeks((prev) => [...prev, { ...w, patternName: null }].sort((a, b) => a.startDate.localeCompare(b.startDate)));
-    setSaving(false);
-    setAddDialog(false);
-    setNewStartDate("");
-    setNewWeekNumber("");
   }
 
   return (
@@ -120,7 +93,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {/* Navigation links */}
+        {/* ナビゲーション */}
         <div className="bg-white border-b mt-3 mx-4 rounded-xl overflow-hidden">
           <Link href="/settings/subjects" className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 border-b">
             <BookOpen className="w-5 h-5 text-blue-500" />
@@ -134,59 +107,52 @@ export default function SettingsPage() {
           </Link>
         </div>
 
-        {/* Weeks list */}
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-600">週カレンダー</h2>
-            <Button size="sm" variant="outline" onClick={() => setAddDialog(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              追加
-            </Button>
-          </div>
+        {/* 設定済みの週一覧（データのある週のみ表示） */}
+        {weeks.length > 0 && (
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-gray-600">週の設定</h2>
+              <p className="text-xs text-gray-400">授業を登録した週が自動的に追加されます</p>
+            </div>
 
-          <div className="space-y-2">
-            {weeks.map((w) => {
-              const start = parseISO(w.startDate);
-              const end = addDays(start, 4);
-              return (
-                <div key={w.id} className="bg-white rounded-xl border p-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-800">第{w.weekNumber}週</span>
-                      {w.label && <span className="text-xs text-gray-500">{w.label}</span>}
-                      {w.isHoliday && (
-                        <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                          {w.holidayLabel || "休日"}
-                        </span>
-                      )}
+            <div className="space-y-2">
+              {weeks.map((w) => {
+                const start = parseISO(w.startDate);
+                const end = addDays(start, 4);
+                return (
+                  <div key={w.id} className="bg-white rounded-xl border p-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800">第{w.weekNumber}週</span>
+                        {w.label && <span className="text-xs text-gray-500">{w.label}</span>}
+                        {w.isHoliday && (
+                          <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                            {w.holidayLabel || "休日"}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {format(start, "M/d", { locale: ja })}〜{format(end, "M/d", { locale: ja })}
+                        {w.patternName && ` · ${w.patternName}`}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {format(start, "M/d", { locale: ja })}〜{format(end, "M/d", { locale: ja })}
-                      {w.patternName && ` · ${w.patternName}`}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Link href={`/settings/weeks/${w.id}`}>
-                      <Button size="sm" variant="ghost" className="text-xs h-8">
-                        A補正
+                    <div className="flex gap-1 shrink-0">
+                      <Link href={`/settings/weeks/${w.id}`}>
+                        <Button size="sm" variant="ghost" className="text-xs h-8">A補正</Button>
+                      </Link>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(w)}>
+                        <Pencil className="w-3.5 h-3.5" />
                       </Button>
-                    </Link>
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(w)}>
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-
-            {weeks.length === 0 && (
-              <p className="text-center text-gray-400 text-sm py-8">週が登録されていません</p>
-            )}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Sign out */}
-        <div className="px-4 pb-4">
+        {/* ログアウト */}
+        <div className="px-4 pb-4 mt-3">
           <Button
             variant="outline"
             className="w-full text-red-500 border-red-200 hover:bg-red-50"
@@ -198,29 +164,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Add week dialog */}
-      <Dialog open={addDialog} onOpenChange={setAddDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>週を追加</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={addWeek} className="space-y-4">
-            <div className="space-y-2">
-              <Label>週番号</Label>
-              <Input type="number" value={newWeekNumber} onChange={(e) => setNewWeekNumber(e.target.value)} min={1} required />
-            </div>
-            <div className="space-y-2">
-              <Label>開始日（月曜日）</Label>
-              <Input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} required />
-            </div>
-            <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? "保存中..." : "追加する"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit week dialog */}
+      {/* 週編集ダイアログ */}
       <Dialog open={!!editWeek} onOpenChange={(o) => !o && setEditWeek(null)}>
         <DialogContent>
           <DialogHeader>

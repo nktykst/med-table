@@ -40,7 +40,8 @@ type Assignment = {
 
 type Props = {
   slot: ResolvedSlot | null;
-  weekId: string;
+  weekId: string | null;
+  ensureWeek: () => Promise<{ id: string }>;
   open: boolean;
   onClose: () => void;
   onAttendanceChange: (dayOfWeek: number, period: number, status: string) => void;
@@ -58,6 +59,7 @@ const ATTENDANCE_OPTIONS = [
 export function SlotDrawer({
   slot,
   weekId,
+  ensureWeek,
   open,
   onClose,
   onAttendanceChange,
@@ -81,7 +83,9 @@ export function SlotDrawer({
     if (!slot) return;
     setSaving(true);
 
-    await fetch(`/api/weeks/${weekId}/overrides`, {
+    const { id } = weekId ? { id: weekId } : await ensureWeek();
+
+    await fetch(`/api/weeks/${id}/overrides`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -98,14 +102,16 @@ export function SlotDrawer({
   }
 
   async function handleAttendance(status: string) {
-    if (!slot || !weekId) return;
+    if (!slot) return;
     setSaving(true);
+
+    const { id } = weekId ? { id: weekId } : await ensureWeek();
 
     await fetch("/api/attendances", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        weekId,
+        weekId: id,
         dayOfWeek: slot.dayOfWeek,
         period: slot.period,
         status,

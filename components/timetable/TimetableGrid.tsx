@@ -1,21 +1,59 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { SlotCell } from "./SlotCell";
 import { SlotDrawer } from "./SlotDrawer";
 import type { ResolvedSlot } from "@/lib/slot-resolver";
 import { TIME_SLOTS } from "@/lib/slot-resolver";
-import { format, addDays, parseISO, startOfISOWeek, getISOWeek } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
 
 const DAYS = ["月", "火", "水", "木", "金"];
 
-type Week = {
+// 学年内の週番号（4月第1月曜日 = 第1週）
+function getAcademicWeekNumber(monday: Date): number {
+  const m = monday.getMonth();
+  const academicYear = m >= 3 ? monday.getFullYear() : monday.getFullYear() - 1;
+  const apr1 = new Date(academicYear, 3, 1);
+  const dow = apr1.getDay();
+  const daysToMon = dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow;
+  const academicStart = new Date(apr1.getTime() + daysToMon * 86400000);
+  return Math.floor((monday.getTime() - academicStart.getTime()) / (7 * 86400000)) + 1;
+}
+
+// 今から -2年 〜 +10年 の全月曜日を生成
+function generateVirtualWeeks() {
+  const today = new Date();
+  const m = today.getMonth();
+  const startYear = (m >= 3 ? today.getFullYear() : today.getFullYear() - 1) - 2;
+  const endYear = today.getFullYear() + 10;
+
+  const apr1 = new Date(startYear, 3, 1);
+  const dow = apr1.getDay();
+  const daysToMon = dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow;
+  let cur = new Date(apr1.getTime() + daysToMon * 86400000);
+  const limit = new Date(endYear + 1, 3, 1);
+
+  const weeks: { startDate: string; weekNumber: number }[] = [];
+  while (cur < limit) {
+    weeks.push({
+      startDate: format(cur, "yyyy-MM-dd"),
+      weekNumber: getAcademicWeekNumber(cur),
+    });
+    cur = new Date(cur.getTime() + 7 * 86400000);
+  }
+  return weeks;
+}
+
+const VIRTUAL_WEEKS = generateVirtualWeeks();
+
+type DbWeek = {
   id: string;
   weekNumber: number;
   startDate: string;
   label: string | null;
+  patternId: string | null;
   isHoliday: boolean | null;
   holidayLabel: string | null;
 };
@@ -37,67 +75,80 @@ type Assignment = {
   subject: { id: string; name: string; color: string } | null;
 };
 
-type SelectedCell = { dayOfWeek: number; period: number };
-
 export function TimetableGrid() {
-  const [week, setWeek] = useState<Week | null>(null);
+  // DB に保存済みの週 (startDate → DbWeek)
+  const [dbWeeks, setDbWeeks] = useState<Map<string, DbWeek>>(new Map());
   const [slots, setSlots] = useState<ResolvedSlot[]>([]);
-  const [allWeeks, setAllWeeks] = useState<Week[]>([]);
   const [weekIdx, setWeekIdx] = useState(0);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ dayOfWeek: number; period: number } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const creatingWeek = useRef<Map<string, Promise<DbWeek>>>(new Map());
 
+  const vw = VIRTUAL_WEEKS[weekIdx];
+  const dbWeek = vw ? dbWeeks.get(vw.startDate) ?? null : null;
+
+  // 初期化
   useEffect(() => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const idx = VIRTUAL_WEEKS.findLastIndex((w) => w.startDate <= today);
+    setWeekIdx(idx >= 0 ? idx : 0);
+
     Promise.all([
       fetch("/api/weeks").then((r) => r.json()),
       fetch("/api/assignments").then((r) => r.json()),
       fetch("/api/subjects").then((r) => r.json()),
-    ]).then(async ([weeksData, assignmentsData, subjectsData]: [Week[], Assignment[], Subject[]]) => {
+    ]).then(([weeksData, assignmentsData, subjectsData]: [DbWeek[], Assignment[], Subject[]]) => {
+      const map = new Map<string, DbWeek>();
+      weeksData.forEach((w) => map.set(w.startDate, w));
+      setDbWeeks(map);
       setAssignments(assignmentsData);
       setSubjects(subjectsData);
-
-      let weeks = weeksData;
-
-      // 週が1件もなければ今週を自動作成
-      if (weeks.length === 0) {
-        const today = new Date();
-        const monday = startOfISOWeek(today);
-        const weekNum = getISOWeek(today);
-        const startDate = format(monday, "yyyy-MM-dd");
-
-        const res = await fetch("/api/weeks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ weekNumber: weekNum, startDate }),
-        });
-        const newWeek: Week = await res.json();
-        weeks = [newWeek];
-      }
-
-      setAllWeeks(weeks);
-      const today = format(new Date(), "yyyy-MM-dd");
-      const idx = weeks.findLastIndex((w) => w.startDate <= today);
-      setWeekIdx(idx >= 0 ? idx : 0);
     });
   }, []);
 
+  // 週切替時にスロットを取得
   useEffect(() => {
-    if (allWeeks.length === 0) return;
-    const w = allWeeks[weekIdx];
-    if (!w) return;
-
+    if (!vw) return;
+    if (!dbWeek) {
+      setSlots([]);
+      return;
+    }
     setLoading(true);
-    setWeek(w);
-    fetch(`/api/weeks/${w.id}`)
+    fetch(`/api/weeks/${dbWeek.id}`)
       .then((r) => r.json())
       .then((data: ResolvedSlot[]) => {
         setSlots(data);
         setLoading(false);
       });
-  }, [allWeeks, weekIdx]);
+  }, [weekIdx, dbWeek?.id]);
+
+  // DB週レコードを必要な時だけ作成（重複防止）
+  const ensureWeek = useCallback(async (): Promise<DbWeek> => {
+    if (!vw) throw new Error("no virtual week");
+    if (dbWeek) return dbWeek;
+
+    // 作成中なら同じPromiseを返す
+    const existing = creatingWeek.current.get(vw.startDate);
+    if (existing) return existing;
+
+    const promise = fetch("/api/weeks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ weekNumber: vw.weekNumber, startDate: vw.startDate }),
+    })
+      .then((r) => r.json())
+      .then((w: DbWeek) => {
+        setDbWeeks((prev) => new Map(prev).set(w.startDate, w));
+        creatingWeek.current.delete(vw.startDate);
+        return w;
+      });
+
+    creatingWeek.current.set(vw.startDate, promise);
+    return promise;
+  }, [vw, dbWeek]);
 
   const handleAttendanceChange = useCallback(
     (dayOfWeek: number, period: number, status: string) => {
@@ -123,19 +174,7 @@ export function TimetableGrid() {
               : s
           );
         }
-        // 新規スロット追加
-        return [
-          ...prev,
-          {
-            dayOfWeek,
-            period,
-            subject,
-            note: null,
-            isCancelled: false,
-            attendance: null,
-            overrideId: "updated",
-          },
-        ];
+        return [...prev, { dayOfWeek, period, subject, note: null, isCancelled: false, attendance: null, overrideId: "updated" }];
       });
     },
     []
@@ -144,43 +183,33 @@ export function TimetableGrid() {
   function getSlot(day: number, period: number): ResolvedSlot {
     return (
       slots.find((s) => s.dayOfWeek === day && s.period === period) ?? {
-        dayOfWeek: day,
-        period,
-        subject: null,
-        note: null,
-        isCancelled: false,
-        attendance: null,
-        overrideId: null,
+        dayOfWeek: day, period, subject: null, note: null, isCancelled: false, attendance: null, overrideId: null,
       }
     );
   }
 
-  function openCell(day: number, period: number) {
-    setSelectedCell({ dayOfWeek: day, period });
-    setDrawerOpen(true);
-  }
-
-  const weekDates = week
+  const weekDates = vw
     ? Array.from({ length: 5 }, (_, i) =>
-        format(addDays(parseISO(week.startDate), i), "M/d", { locale: ja })
+        format(addDays(parseISO(vw.startDate), i), "M/d", { locale: ja })
       )
     : [];
+  const endDate = vw ? format(addDays(parseISO(vw.startDate), 4), "M/d", { locale: ja }) : "";
 
-  const endDate = week
-    ? format(addDays(parseISO(week.startDate), 4), "M/d", { locale: ja })
-    : "";
-
-  const weekAssignments = week
+  const weekAssignments = vw
     ? assignments.filter((a) => {
         if (!a.dueDate || a.isDone) return false;
-        const end = format(addDays(parseISO(week.startDate), 6), "yyyy-MM-dd");
-        return a.dueDate >= week.startDate && a.dueDate <= end + "T99";
+        const end = format(addDays(parseISO(vw.startDate), 6), "yyyy-MM-dd");
+        return a.dueDate >= vw.startDate && a.dueDate <= end + "T99";
       })
     : [];
 
-  const selectedSlot = selectedCell
-    ? getSlot(selectedCell.dayOfWeek, selectedCell.period)
-    : null;
+  const selectedSlot = selectedCell ? getSlot(selectedCell.dayOfWeek, selectedCell.period) : null;
+
+  // 今週かどうかの判定（ヘッダー強調用）
+  const today = format(new Date(), "yyyy-MM-dd");
+  const isCurrentWeek = vw
+    ? vw.startDate <= today && today <= format(addDays(parseISO(vw.startDate), 6), "yyyy-MM-dd")
+    : false;
 
   return (
     <div className="flex flex-col h-full">
@@ -196,23 +225,25 @@ export function TimetableGrid() {
           </button>
 
           <div className="text-center">
-            {week ? (
+            {vw && (
               <>
-                <p className="text-sm font-semibold text-gray-800">
-                  第{week.weekNumber}週{week.label && ` · ${week.label}`}
+                <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5 justify-center">
+                  {isCurrentWeek && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                  )}
+                  第{vw.weekNumber}週
+                  {dbWeek?.label && ` · ${dbWeek.label}`}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {format(parseISO(week.startDate), "M/d", { locale: ja })}〜{endDate}
+                  {format(parseISO(vw.startDate), "M/d", { locale: ja })}〜{endDate}
                 </p>
               </>
-            ) : (
-              <p className="text-sm text-gray-400">読み込み中...</p>
             )}
           </div>
 
           <button
-            onClick={() => setWeekIdx((i) => Math.min(allWeeks.length - 1, i + 1))}
-            disabled={weekIdx >= allWeeks.length - 1}
+            onClick={() => setWeekIdx((i) => Math.min(VIRTUAL_WEEKS.length - 1, i + 1))}
+            disabled={weekIdx >= VIRTUAL_WEEKS.length - 1}
             className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30"
           >
             <ChevronRight className="w-5 h-5" />
@@ -220,7 +251,7 @@ export function TimetableGrid() {
         </div>
       </div>
 
-      {/* Due this week banner */}
+      {/* 今週の締切バナー */}
       {weekAssignments.length > 0 && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
           <div className="flex items-start gap-2">
@@ -244,10 +275,10 @@ export function TimetableGrid() {
         </div>
       )}
 
-      {week?.isHoliday ? (
+      {dbWeek?.isHoliday ? (
         <div className="flex-1 flex items-center justify-center flex-col gap-2 text-gray-400">
           <span className="text-4xl">🎌</span>
-          <p className="text-lg font-medium">{week.holidayLabel || "休日週"}</p>
+          <p className="text-lg font-medium">{dbWeek.holidayLabel || "休日週"}</p>
         </div>
       ) : (
         <div className="flex-1 overflow-auto p-2">
@@ -255,7 +286,6 @@ export function TimetableGrid() {
             <div className="flex items-center justify-center h-64 text-gray-400">読み込み中...</div>
           ) : (
             <div className="min-w-0">
-              {/* Column headers */}
               <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: "2.5rem repeat(5, 1fr)" }}>
                 <div />
                 {DAYS.map((day, i) => (
@@ -266,7 +296,6 @@ export function TimetableGrid() {
                 ))}
               </div>
 
-              {/* Grid */}
               {TIME_SLOTS.map(({ period, start }) => (
                 <div
                   key={period}
@@ -277,12 +306,14 @@ export function TimetableGrid() {
                     <span className="text-xs font-bold text-gray-500">{period}</span>
                     <span className="text-[9px] text-gray-300 leading-none">{start}</span>
                   </div>
-
                   {[1, 2, 3, 4, 5].map((day) => (
                     <div key={day} className="min-h-[64px]">
                       <SlotCell
                         slot={getSlot(day, period)}
-                        onClick={() => openCell(day, period)}
+                        onClick={() => {
+                          setSelectedCell({ dayOfWeek: day, period });
+                          setDrawerOpen(true);
+                        }}
                       />
                     </div>
                   ))}
@@ -293,10 +324,11 @@ export function TimetableGrid() {
         </div>
       )}
 
-      {week && (
+      {vw && (
         <SlotDrawer
           slot={selectedSlot}
-          weekId={week.id}
+          weekId={dbWeek?.id ?? null}
+          ensureWeek={ensureWeek}
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           onAttendanceChange={handleAttendanceChange}
