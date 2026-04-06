@@ -2,7 +2,7 @@
 
 import type { ResolvedSlot } from "@/lib/slot-resolver";
 import { Badge } from "@/components/ui/badge";
-import { Wifi, Ban } from "lucide-react";
+import { Wifi, Ban, Plus } from "lucide-react";
 
 type Props = {
   slot: ResolvedSlot;
@@ -18,21 +18,27 @@ const ATTENDANCE_COLORS = {
 export function SlotCell({ slot, onClick }: Props) {
   if (!slot.subject) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-200 h-full min-h-[64px] flex items-center justify-center">
-        <span className="text-xs text-gray-300">—</span>
-      </div>
+      <button
+        onClick={onClick}
+        className="w-full h-full min-h-[64px] rounded-lg border border-dashed border-gray-200 flex items-center justify-center hover:border-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
+      >
+        <Plus className="w-4 h-4 text-gray-300" />
+      </button>
     );
   }
 
   if (slot.isCancelled) {
     return (
-      <div className="rounded-lg bg-gray-100 h-full min-h-[64px] flex flex-col items-center justify-center gap-1 p-1">
+      <button
+        onClick={onClick}
+        className="w-full rounded-lg bg-gray-100 h-full min-h-[64px] flex flex-col items-center justify-center gap-1 p-1 active:scale-95 transition-transform"
+      >
         <Ban className="w-4 h-4 text-gray-400" />
         <span className="text-xs text-gray-400 leading-tight text-center line-clamp-2">
           {slot.subject.name}
         </span>
         <span className="text-xs text-red-400">休講</span>
-      </div>
+      </button>
     );
   }
 
@@ -49,9 +55,7 @@ export function SlotCell({ slot, onClick }: Props) {
         borderLeft: `3px solid ${slot.subject.color}`,
       }}
     >
-      <span
-        className="text-xs font-semibold leading-tight line-clamp-2 text-gray-800"
-      >
+      <span className="text-xs font-semibold leading-tight line-clamp-2 text-gray-800">
         {slot.subject.name}
       </span>
       {slot.subject.room && (
