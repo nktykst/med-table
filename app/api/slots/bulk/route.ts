@@ -23,21 +23,21 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     subjectId,
-    dayOfWeek,
+    dayOfWeeks,
     periodFrom,
     periodTo,
     startDate, // Monday of first week (yyyy-MM-dd)
     repeatWeeks,
   } = body as {
     subjectId: string;
-    dayOfWeek: number;
+    dayOfWeeks: number[];
     periodFrom: number;
     periodTo: number;
     startDate: string;
     repeatWeeks: number;
   };
 
-  if (!subjectId || !dayOfWeek || !periodFrom || !periodTo || !startDate || !repeatWeeks) {
+  if (!subjectId || !dayOfWeeks?.length || !periodFrom || !periodTo || !startDate || !repeatWeeks) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
@@ -73,28 +73,28 @@ export async function POST(req: NextRequest) {
         .returning();
     }
 
-    // 指定された時限範囲でオーバーライドを作成
-    for (let period = periodFrom; period <= periodTo; period++) {
-      // 既存の override を削除
-      await db
-        .delete(slotOverrides)
-        .where(
-          and(
-            eq(slotOverrides.weekId, week.id),
-            eq(slotOverrides.dayOfWeek, dayOfWeek),
-            eq(slotOverrides.period, period)
-          )
-        );
+    for (const dayOfWeek of dayOfWeeks) {
+      for (let period = periodFrom; period <= periodTo; period++) {
+        await db
+          .delete(slotOverrides)
+          .where(
+            and(
+              eq(slotOverrides.weekId, week.id),
+              eq(slotOverrides.dayOfWeek, dayOfWeek),
+              eq(slotOverrides.period, period)
+            )
+          );
 
-      await db.insert(slotOverrides).values({
-        weekId: week.id,
-        dayOfWeek,
-        period,
-        subjectId,
-        isCancelled: false,
-      });
+        await db.insert(slotOverrides).values({
+          weekId: week.id,
+          dayOfWeek,
+          period,
+          subjectId,
+          isCancelled: false,
+        });
 
-      created.push(`${monday} day=${dayOfWeek} period=${period}`);
+        created.push(`${monday} day=${dayOfWeek} period=${period}`);
+      }
     }
   }
 

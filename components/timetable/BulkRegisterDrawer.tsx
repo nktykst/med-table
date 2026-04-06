@@ -44,7 +44,7 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
 
   // フォーム状態
   const [subjectId, setSubjectId] = useState("");
-  const [dayOfWeek, setDayOfWeek] = useState(initialDayOfWeek ?? 1);
+  const [dayOfWeeks, setDayOfWeeks] = useState<number[]>(initialDayOfWeek ? [initialDayOfWeek] : [1]);
   const [periodFrom, setPeriodFrom] = useState(initialPeriod ?? 1);
   const [periodTo, setPeriodTo] = useState(initialPeriod ?? 1);
   const [startDate, setStartDate] = useState(() => {
@@ -60,19 +60,18 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
     if (open) {
       setStep("form");
       setError("");
-      if (initialDayOfWeek) setDayOfWeek(initialDayOfWeek);
+      if (initialDayOfWeek) setDayOfWeeks([initialDayOfWeek]);
       if (initialPeriod) { setPeriodFrom(initialPeriod); setPeriodTo(initialPeriod); }
     }
   }, [open, initialDayOfWeek, initialPeriod]);
 
   const selectedSubject = subjects.find((s) => s.id === subjectId);
 
-  // プレビュー用: 登録対象の日付一覧
+  // プレビュー用: 登録対象の日付一覧（曜日×週）
   const previewDates = Array.from({ length: repeatWeeks }, (_, i) => {
     const monday = addDays(parseISO(startDate), i * 7);
-    const targetDay = addDays(monday, dayOfWeek - 1);
-    return format(targetDay, "yyyy-MM-dd");
-  });
+    return [...dayOfWeeks].sort().map((d) => format(addDays(monday, d - 1), "yyyy-MM-dd"));
+  }).flat();
 
   function handleClose() {
     setStep("form");
@@ -82,6 +81,7 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
 
   async function handleSubmit() {
     if (!subjectId) { setError("科目を選択してください"); return; }
+    if (!dayOfWeeks.length) { setError("曜日を選択してください"); return; }
     if (periodFrom > periodTo) { setError("開始時限は終了時限以下にしてください"); return; }
 
     setSaving(true);
@@ -91,7 +91,7 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
       const res = await fetch("/api/slots/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subjectId, dayOfWeek, periodFrom, periodTo, startDate, repeatWeeks }),
+        body: JSON.stringify({ subjectId, dayOfWeeks, periodFrom, periodTo, startDate, repeatWeeks }),
       });
       if (!res.ok) throw new Error("登録に失敗しました");
       setStep("done");
@@ -106,6 +106,14 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
   const periods = periodFrom === periodTo
     ? `第${periodFrom}限`
     : `第${periodFrom}〜${periodTo}限`;
+
+  function toggleDay(d: number) {
+    setDayOfWeeks((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+    );
+  }
+
+  const dayLabels = [...dayOfWeeks].sort().map((d) => DAYS.find((x) => x.value === d)?.label).join("・");
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -132,9 +140,11 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
             >
               <p className="font-semibold">{selectedSubject?.name}</p>
               <p className="text-sm opacity-90">
-                {DAYS.find((d) => d.value === dayOfWeek)?.label}曜日 · {periods}
+                {dayLabels}曜日 · {periods}
               </p>
-              <p className="text-sm opacity-90">{repeatWeeks}週間 ({previewDates.length}回)</p>
+              <p className="text-sm opacity-90">
+                {repeatWeeks}週間 · {previewDates.length}回（{(periodTo - periodFrom + 1) * dayOfWeeks.length * repeatWeeks}コマ）
+              </p>
             </div>
 
             {/* 対象日一覧 */}
@@ -198,17 +208,17 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
 
             <Separator />
 
-            {/* 曜日選択 */}
+            {/* 曜日選択（複数可） */}
             <div className="space-y-2">
-              <Label>曜日</Label>
+              <Label>曜日（複数選択可）</Label>
               <div className="flex gap-2">
                 {DAYS.map((d) => (
                   <button
                     key={d.value}
                     type="button"
-                    onClick={() => setDayOfWeek(d.value)}
+                    onClick={() => toggleDay(d.value)}
                     className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                      dayOfWeek === d.value
+                      dayOfWeeks.includes(d.value)
                         ? "bg-blue-600 text-white"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
@@ -217,6 +227,9 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
                   </button>
                 ))}
               </div>
+              {dayOfWeeks.length === 0 && (
+                <p className="text-xs text-red-500">曜日を1つ以上選択してください</p>
+              )}
             </div>
 
             <Separator />
@@ -297,8 +310,8 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
 
             <p className="text-xs text-gray-400 text-center">
               {format(parseISO(startDate), "M/d", { locale: ja })} 〜{" "}
-              {format(addDays(parseISO(startDate), (repeatWeeks - 1) * 7 + dayOfWeek - 1), "M/d", { locale: ja })}
-              （{repeatWeeks}週 · {(periodTo - periodFrom + 1) * repeatWeeks}コマ）
+              {format(addDays(parseISO(startDate), (repeatWeeks - 1) * 7 + Math.max(...dayOfWeeks, 1) - 1), "M/d", { locale: ja })}
+              （{repeatWeeks}週 · {(periodTo - periodFrom + 1) * dayOfWeeks.length * repeatWeeks}コマ）
             </p>
 
             {error && (
@@ -312,7 +325,7 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
                 setError("");
                 setStep("preview");
               }}
-              disabled={subjects.length === 0}
+              disabled={subjects.length === 0 || dayOfWeeks.length === 0}
             >
               プレビューを確認
               <ChevronRight className="w-4 h-4 ml-1" />
