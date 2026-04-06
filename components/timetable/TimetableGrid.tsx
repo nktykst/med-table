@@ -367,6 +367,7 @@ export function TimetableGrid({
           onAttendanceChange={handleAttendanceChange}
           onSlotChange={handleSlotChange}
           onBulkRegister={onBulkRegister ?? (() => {})}
+          onSubjectAdded={(s) => setSubjects((prev) => [...prev, s])}
           assignments={assignments}
           subjects={subjects}
         />

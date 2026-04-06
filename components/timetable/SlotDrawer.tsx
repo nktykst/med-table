@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ExternalLink, CheckCircle2, Clock, XCircle, Plus, ListPlus } from "lucide-react";
+import { QuickAddSubject } from "./QuickAddSubject";
 import type { ResolvedSlot } from "@/lib/slot-resolver";
 import { TIME_SLOTS } from "@/lib/slot-resolver";
 
@@ -47,6 +48,7 @@ type Props = {
   onAttendanceChange: (dayOfWeek: number, period: number, status: string) => void;
   onSlotChange: (dayOfWeek: number, period: number, subject: Subject | null) => void;
   onBulkRegister: (dayOfWeek: number, period: number) => void;
+  onSubjectAdded: (subject: Subject) => void;
   assignments: Assignment[];
   subjects: Subject[];
 };
@@ -63,6 +65,7 @@ export function SlotDrawer({
   ensureWeek,
   open,
   onBulkRegister,
+  onSubjectAdded,
   onClose,
   onAttendanceChange,
   onSlotChange,
@@ -183,6 +186,15 @@ export function SlotDrawer({
             </div>
           )}
         </SheetHeader>
+
+        {/* クイック科目追加 */}
+        <QuickAddSubject
+          existingCount={subjects.length}
+          onAdded={(s) => {
+            onSubjectAdded(s);
+            handleSubjectChange(s.id);
+          }}
+        />
 
         {/* 繰り返し登録 */}
         <button

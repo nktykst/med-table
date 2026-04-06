@@ -88,6 +88,7 @@ export default function TimetablePage() {
         open={bulkOpen}
         onClose={() => { setBulkOpen(false); setBulkInitDay(undefined); setBulkInitPeriod(undefined); }}
         subjects={subjects}
+        onSubjectAdded={(s) => setSubjects((prev) => [...prev, s])}
         onDone={handleBulkDone}
         initialDayOfWeek={bulkInitDay}
         initialPeriod={bulkInitPeriod}

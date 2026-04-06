@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle2, ChevronRight } from "lucide-react";
+import { QuickAddSubject } from "./QuickAddSubject";
 import { format, addDays, parseISO, startOfISOWeek } from "date-fns";
 import { ja } from "date-fns/locale";
 import { TIME_SLOTS } from "@/lib/slot-resolver";
@@ -26,6 +27,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   subjects: Subject[];
+  onSubjectAdded: (subject: Subject) => void;
   onDone: () => void;
   initialDayOfWeek?: number;
   initialPeriod?: number;
@@ -39,7 +41,7 @@ const DAYS = [
   { value: 5, label: "金" },
 ];
 
-export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDayOfWeek, initialPeriod }: Props) {
+export function BulkRegisterDrawer({ open, onClose, subjects, onSubjectAdded, onDone, initialDayOfWeek, initialPeriod }: Props) {
   const [step, setStep] = useState<"form" | "preview" | "done">("form");
 
   // フォーム状態
@@ -198,12 +200,14 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDay
                     <span className="text-sm font-medium truncate">{s.name}</span>
                   </button>
                 ))}
-                {subjects.length === 0 && (
-                  <p className="col-span-2 text-sm text-gray-400 py-2">
-                    先に「設定 → 科目管理」で科目を登録してください
-                  </p>
-                )}
               </div>
+              <QuickAddSubject
+                existingCount={subjects.length}
+                onAdded={(s) => {
+                  onSubjectAdded(s);
+                  setSubjectId(s.id);
+                }}
+              />
             </div>
 
             <Separator />
