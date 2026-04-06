@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { TimetableGrid } from "@/components/timetable/TimetableGrid";
 import { MonthView } from "@/components/timetable/MonthView";
@@ -19,7 +19,6 @@ export default function TimetablePage() {
   const [bulkInitDay, setBulkInitDay] = useState<number | undefined>();
   const [bulkInitPeriod, setBulkInitPeriod] = useState<number | undefined>();
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [currentWeekId, setCurrentWeekId] = useState<string | null>(null);
   const [currentWeekLabel, setCurrentWeekLabel] = useState("この週");
   const [currentWeekStart, setCurrentWeekStart] = useState<string>(
     format(new Date(), "yyyy-MM-dd")
@@ -97,8 +96,7 @@ export default function TimetablePage() {
               setBulkInitPeriod(period);
               setBulkOpen(true);
             }}
-            onWeekChange={(id, label, startDate) => {
-              setCurrentWeekId(id);
+            onWeekChange={(_id, label, startDate) => {
               setCurrentWeekLabel(label);
               setCurrentWeekStart(startDate);
             }}
@@ -116,6 +114,7 @@ export default function TimetablePage() {
         onDone={handleBulkDone}
         initialDayOfWeek={bulkInitDay}
         initialPeriod={bulkInitPeriod}
+        currentWeekStart={currentWeekStart}
       />
 
       <ShareDrawer

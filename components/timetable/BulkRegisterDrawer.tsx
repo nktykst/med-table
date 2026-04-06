@@ -31,6 +31,7 @@ type Props = {
   onDone: () => void;
   initialDayOfWeek?: number;
   initialPeriod?: number;
+  currentWeekStart?: string;
 };
 
 const DAYS = [
@@ -41,7 +42,7 @@ const DAYS = [
   { value: 5, label: "金" },
 ];
 
-export function BulkRegisterDrawer({ open, onClose, subjects, onSubjectAdded, onDone, initialDayOfWeek, initialPeriod }: Props) {
+export function BulkRegisterDrawer({ open, onClose, subjects, onSubjectAdded, onDone, initialDayOfWeek, initialPeriod, currentWeekStart }: Props) {
   const [step, setStep] = useState<"form" | "preview" | "done">("form");
 
   // フォーム状態
@@ -64,8 +65,10 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onSubjectAdded, on
       setError("");
       if (initialDayOfWeek) setDayOfWeeks([initialDayOfWeek]);
       if (initialPeriod) { setPeriodFrom(initialPeriod); setPeriodTo(initialPeriod); }
+      // 現在表示中の週を開始週にリセット
+      if (currentWeekStart) setStartDate(currentWeekStart);
     }
-  }, [open, initialDayOfWeek, initialPeriod]);
+  }, [open, initialDayOfWeek, initialPeriod, currentWeekStart]);
 
   const selectedSubject = subjects.find((s) => s.id === subjectId);
 
