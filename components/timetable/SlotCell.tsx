@@ -19,7 +19,7 @@ const ATTENDANCE_COLORS = {
 export function SlotCell({ slot, editMode = false, onClick }: Props) {
   if (!slot.subject) {
     if (!editMode) {
-      return <div className="w-full h-full min-h-[64px]" />;
+      return <div className="w-full h-full min-h-[64px] rounded-lg border border-gray-100 bg-gray-50/50" />;
     }
     return (
       <button
