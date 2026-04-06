@@ -20,9 +20,10 @@ export function SlotCell({ slot, onClick }: Props) {
     return (
       <button
         onClick={onClick}
-        className="w-full h-full min-h-[64px] rounded-lg border border-dashed border-gray-200 flex items-center justify-center hover:border-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
+        className="w-full h-full min-h-[64px] rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/40 flex flex-col items-center justify-center gap-1 hover:bg-blue-100/50 hover:border-blue-300 active:scale-95 transition-all"
       >
-        <Plus className="w-4 h-4 text-gray-300" />
+        <Plus className="w-4 h-4 text-blue-400" />
+        <span className="text-[10px] text-blue-400 font-medium">追加</span>
       </button>
     );
   }

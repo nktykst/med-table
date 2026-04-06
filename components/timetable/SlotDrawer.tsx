@@ -74,12 +74,14 @@ export function SlotDrawer({
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pendingSubjectId, setPendingSubjectId] = useState<string | null>(null);
 
   if (!slot) return null;
 
   const timeSlot = TIME_SLOTS.find((t) => t.period === slot.period);
   const currentStatus = slot.attendance?.status ?? "present";
   const currentSubjectId = slot.subject?.id ?? "";
+  const selectedSubjectId = pendingSubjectId ?? currentSubjectId;
 
   const subjectAssignments = slot.subject
     ? assignments.filter((a) => a.subject?.id === slot.subject?.id)
@@ -175,25 +177,39 @@ export function SlotDrawer({
               <SheetTitle className="text-left text-base mb-2">
                 {slot.subject ? slot.subject.name : "科目未設定"}
               </SheetTitle>
-              <Select
-                value={currentSubjectId}
-                onValueChange={(v) => handleSubjectChange(v ?? "")}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="科目を設定する" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">設定しない</SelectItem>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                        {s.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={selectedSubjectId}
+                  onValueChange={(v) => setPendingSubjectId(v ?? "")}
+                >
+                  <SelectTrigger className="h-9 text-sm flex-1">
+                    <SelectValue placeholder="科目を選ぶ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">設定しない</SelectItem>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          {s.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pendingSubjectId !== null && pendingSubjectId !== currentSubjectId && (
+                  <button
+                    onClick={() => {
+                      handleSubjectChange(pendingSubjectId);
+                      setPendingSubjectId(null);
+                    }}
+                    disabled={saving}
+                    className="h-9 px-3 rounded-md bg-blue-600 text-white text-sm font-medium shrink-0 hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {saving ? "…" : "登録"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -215,6 +231,7 @@ export function SlotDrawer({
           existingCount={subjects.length}
           onAdded={(s) => {
             onSubjectAdded(s);
+            setPendingSubjectId(null);
             handleSubjectChange(s.id);
           }}
         />
