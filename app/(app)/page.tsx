@@ -13,6 +13,8 @@ export default function TimetablePage() {
   const [view, setView] = useState<View>("week");
   const [jumpDate, setJumpDate] = useState<string | undefined>();
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkInitDay, setBulkInitDay] = useState<number | undefined>();
+  const [bulkInitPeriod, setBulkInitPeriod] = useState<number | undefined>();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const refreshRef = useRef<() => void>(() => {});
 
@@ -68,7 +70,15 @@ export default function TimetablePage() {
 
       <div className="flex-1 overflow-hidden">
         {view === "week" ? (
-          <TimetableGrid key={jumpDate} initialDate={jumpDate} />
+          <TimetableGrid
+          key={jumpDate}
+          initialDate={jumpDate}
+          onBulkRegister={(day, period) => {
+            setBulkInitDay(day);
+            setBulkInitPeriod(period);
+            setBulkOpen(true);
+          }}
+        />
         ) : (
           <MonthView onSelectDate={handleSelectDate} />
         )}
@@ -76,9 +86,11 @@ export default function TimetablePage() {
 
       <BulkRegisterDrawer
         open={bulkOpen}
-        onClose={() => setBulkOpen(false)}
+        onClose={() => { setBulkOpen(false); setBulkInitDay(undefined); setBulkInitPeriod(undefined); }}
         subjects={subjects}
         onDone={handleBulkDone}
+        initialDayOfWeek={bulkInitDay}
+        initialPeriod={bulkInitPeriod}
       />
     </div>
   );

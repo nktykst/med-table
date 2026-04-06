@@ -75,7 +75,13 @@ type Assignment = {
   subject: { id: string; name: string; color: string } | null;
 };
 
-export function TimetableGrid({ initialDate }: { initialDate?: string }) {
+export function TimetableGrid({
+  initialDate,
+  onBulkRegister,
+}: {
+  initialDate?: string;
+  onBulkRegister?: (dayOfWeek: number, period: number) => void;
+}) {
   // DB に保存済みの週 (startDate → DbWeek)
   const [dbWeeks, setDbWeeks] = useState<Map<string, DbWeek>>(new Map());
   const [slots, setSlots] = useState<ResolvedSlot[]>([]);
@@ -360,6 +366,7 @@ export function TimetableGrid({ initialDate }: { initialDate?: string }) {
           onClose={() => setDrawerOpen(false)}
           onAttendanceChange={handleAttendanceChange}
           onSlotChange={handleSlotChange}
+          onBulkRegister={onBulkRegister ?? (() => {})}
           assignments={assignments}
           subjects={subjects}
         />

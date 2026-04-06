@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ExternalLink, CheckCircle2, Clock, XCircle, Plus } from "lucide-react";
+import { ExternalLink, CheckCircle2, Clock, XCircle, Plus, ListPlus } from "lucide-react";
 import type { ResolvedSlot } from "@/lib/slot-resolver";
 import { TIME_SLOTS } from "@/lib/slot-resolver";
 
@@ -46,6 +46,7 @@ type Props = {
   onClose: () => void;
   onAttendanceChange: (dayOfWeek: number, period: number, status: string) => void;
   onSlotChange: (dayOfWeek: number, period: number, subject: Subject | null) => void;
+  onBulkRegister: (dayOfWeek: number, period: number) => void;
   assignments: Assignment[];
   subjects: Subject[];
 };
@@ -61,6 +62,7 @@ export function SlotDrawer({
   weekId,
   ensureWeek,
   open,
+  onBulkRegister,
   onClose,
   onAttendanceChange,
   onSlotChange,
@@ -181,6 +183,15 @@ export function SlotDrawer({
             </div>
           )}
         </SheetHeader>
+
+        {/* 繰り返し登録 */}
+        <button
+          onClick={() => { onClose(); onBulkRegister(slot.dayOfWeek, slot.period); }}
+          className="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-1"
+        >
+          <ListPlus className="w-4 h-4" />
+          この曜日・時限を複数週まとめて登録する
+        </button>
 
         {subjects.length === 0 && !slot.subject && (
           <div className="bg-blue-50 text-blue-700 rounded-lg px-3 py-2 text-sm mb-4">

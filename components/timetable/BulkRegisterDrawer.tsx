@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +27,8 @@ type Props = {
   onClose: () => void;
   subjects: Subject[];
   onDone: () => void;
+  initialDayOfWeek?: number;
+  initialPeriod?: number;
 };
 
 const DAYS = [
@@ -37,14 +39,14 @@ const DAYS = [
   { value: 5, label: "金" },
 ];
 
-export function BulkRegisterDrawer({ open, onClose, subjects, onDone }: Props) {
+export function BulkRegisterDrawer({ open, onClose, subjects, onDone, initialDayOfWeek, initialPeriod }: Props) {
   const [step, setStep] = useState<"form" | "preview" | "done">("form");
 
   // フォーム状態
   const [subjectId, setSubjectId] = useState("");
-  const [dayOfWeek, setDayOfWeek] = useState(1);
-  const [periodFrom, setPeriodFrom] = useState(1);
-  const [periodTo, setPeriodTo] = useState(1);
+  const [dayOfWeek, setDayOfWeek] = useState(initialDayOfWeek ?? 1);
+  const [periodFrom, setPeriodFrom] = useState(initialPeriod ?? 1);
+  const [periodTo, setPeriodTo] = useState(initialPeriod ?? 1);
   const [startDate, setStartDate] = useState(() => {
     // 今週の月曜日をデフォルト
     return format(startOfISOWeek(new Date()), "yyyy-MM-dd");
@@ -52,6 +54,16 @@ export function BulkRegisterDrawer({ open, onClose, subjects, onDone }: Props) {
   const [repeatWeeks, setRepeatWeeks] = useState(15);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // open のたびに初期値を反映
+  useEffect(() => {
+    if (open) {
+      setStep("form");
+      setError("");
+      if (initialDayOfWeek) setDayOfWeek(initialDayOfWeek);
+      if (initialPeriod) { setPeriodFrom(initialPeriod); setPeriodTo(initialPeriod); }
+    }
+  }, [open, initialDayOfWeek, initialPeriod]);
 
   const selectedSubject = subjects.find((s) => s.id === subjectId);
 
