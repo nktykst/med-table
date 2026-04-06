@@ -44,6 +44,7 @@ export default function SubjectsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Subject | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   // Form state
   const [name, setName] = useState("");
@@ -95,29 +96,37 @@ export default function SubjectsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setSaveError("");
 
-    const body = { name, color, room: room || null, isOnline, syllabusUrl: syllabusUrl || null, isPublic };
+    try {
+      const body = { name, color, room: room || null, isOnline, syllabusUrl: syllabusUrl || null, isPublic };
 
-    if (editTarget) {
-      const res = await fetch(`/api/subjects/${editTarget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const updated = await res.json();
-      setSubjects((prev) => prev.map((s) => (s.id === editTarget.id ? updated : s)));
-    } else {
-      const res = await fetch("/api/subjects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const created = await res.json();
-      setSubjects((prev) => [...prev, created]);
+      if (editTarget) {
+        const res = await fetch(`/api/subjects/${editTarget.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`保存に失敗しました (${res.status})`);
+        const updated = await res.json();
+        setSubjects((prev) => prev.map((s) => (s.id === editTarget.id ? updated : s)));
+      } else {
+        const res = await fetch("/api/subjects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`保存に失敗しました (${res.status})`);
+        const created = await res.json();
+        setSubjects((prev) => [...prev, created]);
+      }
+
+      setDialogOpen(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "保存に失敗しました");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    setDialogOpen(false);
   }
 
   async function handleDelete(id: string) {
@@ -269,6 +278,9 @@ export default function SubjectsPage() {
               </p>
             </div>
 
+            {saveError && (
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{saveError}</p>
+            )}
             <Button type="submit" className="w-full" disabled={saving}>
               {saving ? "保存中..." : editTarget ? "更新する" : "追加する"}
             </Button>
