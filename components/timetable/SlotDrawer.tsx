@@ -46,7 +46,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onAttendanceChange: (dayOfWeek: number, period: number, status: string) => void;
-  onSlotChange: (dayOfWeek: number, period: number, subject: Subject | null) => void;
+  onSlotChange: (dayOfWeek: number, period: number, subject: Subject | null, note?: string | null) => void;
   onBulkRegister: (dayOfWeek: number, period: number) => void;
   onSubjectAdded: (subject: Subject) => void;
   assignments: Assignment[];
@@ -177,6 +177,7 @@ export function SlotDrawer({
       }),
     });
     setNoteSaving(false);
+    onSlotChange(slot.dayOfWeek, slot.period, slot.subject, note || null);
   }
 
   const DAY_LABELS = ["", "月", "火", "水", "木", "金"];

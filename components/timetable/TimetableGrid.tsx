@@ -178,17 +178,17 @@ export function TimetableGrid({
   );
 
   const handleSlotChange = useCallback(
-    (dayOfWeek: number, period: number, subject: Subject | null) => {
+    (dayOfWeek: number, period: number, subject: Subject | null, note?: string | null) => {
       setSlots((prev) => {
         const exists = prev.find((s) => s.dayOfWeek === dayOfWeek && s.period === period);
         if (exists) {
           return prev.map((s) =>
             s.dayOfWeek === dayOfWeek && s.period === period
-              ? { ...s, subject, overrideId: "updated" }
+              ? { ...s, subject, ...(note !== undefined ? { note } : {}), overrideId: "updated" }
               : s
           );
         }
-        return [...prev, { dayOfWeek, period, subject, note: null, isCancelled: false, attendance: null, overrideId: "updated" }];
+        return [...prev, { dayOfWeek, period, subject, note: note ?? null, isCancelled: false, attendance: null, overrideId: "updated" }];
       });
     },
     []
