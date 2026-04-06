@@ -75,7 +75,7 @@ type Assignment = {
   subject: { id: string; name: string; color: string } | null;
 };
 
-export function TimetableGrid() {
+export function TimetableGrid({ initialDate }: { initialDate?: string }) {
   // DB に保存済みの週 (startDate → DbWeek)
   const [dbWeeks, setDbWeeks] = useState<Map<string, DbWeek>>(new Map());
   const [slots, setSlots] = useState<ResolvedSlot[]>([]);
@@ -92,8 +92,8 @@ export function TimetableGrid() {
 
   // 初期化
   useEffect(() => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    const idx = VIRTUAL_WEEKS.findLastIndex((w) => w.startDate <= today);
+    const target = initialDate ?? format(new Date(), "yyyy-MM-dd");
+    const idx = VIRTUAL_WEEKS.findLastIndex((w) => w.startDate <= target);
     setWeekIdx(idx >= 0 ? idx : 0);
 
     Promise.all([
