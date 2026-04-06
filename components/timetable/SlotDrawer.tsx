@@ -161,21 +161,6 @@ export function SlotDrawer({
             <span>·</span>
             <span>第{slot.period}限</span>
             {timeSlot && <span>{timeSlot.start}〜{timeSlot.end}</span>}
-            {slot.subject && (
-              <div className="ml-auto">
-                {confirmDelete ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-red-500 text-xs">削除しますか?</span>
-                    <button onClick={handleDelete} disabled={saving} className="text-xs text-red-500 font-semibold">はい</button>
-                    <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-500">キャンセル</button>
-                  </div>
-                ) : (
-                  <button onClick={() => setConfirmDelete(true)} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
           </div>
 
           {/* 科目セレクター */}
@@ -316,6 +301,41 @@ export function SlotDrawer({
                   </ul>
                 </div>
               </>
+            )}
+          </>
+        )}
+
+        {/* 削除ボタン */}
+        {slot.subject && (
+          <>
+            <Separator className="my-4" />
+            {confirmDelete ? (
+              <div className="flex items-center justify-between bg-red-50 rounded-xl px-4 py-3">
+                <span className="text-sm text-red-600">この授業を削除しますか？</span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-sm text-gray-500"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={saving}
+                    className="text-sm text-red-600 font-semibold"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-red-500 transition-colors w-full py-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                この授業を削除
+              </button>
             )}
           </>
         )}
