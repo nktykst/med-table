@@ -283,7 +283,34 @@ export function TimetableGrid() {
       ) : (
         <div className="flex-1 overflow-auto p-2">
           {loading ? (
-            <div className="flex items-center justify-center h-64 text-gray-400">読み込み中...</div>
+            <div className="min-w-0">
+              {/* スケルトンヘッダー */}
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: "2.5rem repeat(5, 1fr)" }}>
+                <div />
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="text-center space-y-1 py-1">
+                    <div className="h-3 w-4 bg-gray-200 rounded animate-pulse mx-auto" />
+                    <div className="h-3 w-7 bg-gray-100 rounded animate-pulse mx-auto" />
+                  </div>
+                ))}
+              </div>
+              {/* スケルトングリッド */}
+              {TIME_SLOTS.map(({ period }) => (
+                <div key={period} className="grid gap-1 mb-1" style={{ gridTemplateColumns: "2.5rem repeat(5, 1fr)" }}>
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <div className="h-3 w-3 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-2 w-6 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="min-h-[64px] rounded-lg bg-gray-100 animate-pulse"
+                      style={{ animationDelay: `${(period * 5 + i) * 30}ms` }}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="min-w-0">
               <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: "2.5rem repeat(5, 1fr)" }}>
