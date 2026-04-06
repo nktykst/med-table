@@ -59,11 +59,15 @@ export function SlotCell({ slot, onClick }: Props) {
       <span className="text-xs font-semibold leading-tight line-clamp-2 text-gray-800">
         {slot.subject.name}
       </span>
-      {slot.subject.room && (
-        <span className="text-xs text-gray-500 leading-tight truncate">
+      {slot.note ? (
+        <span className="text-[10px] text-gray-600 leading-tight line-clamp-2 mt-auto">
+          {slot.note}
+        </span>
+      ) : slot.subject.room ? (
+        <span className="text-[10px] text-gray-500 leading-tight truncate">
           {slot.subject.room}
         </span>
-      )}
+      ) : null}
       {slot.subject.isOnline && (
         <Wifi className="w-3 h-3 text-blue-500 mt-auto" />
       )}

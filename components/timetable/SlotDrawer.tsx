@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -75,6 +75,15 @@ export function SlotDrawer({
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pendingSubjectId, setPendingSubjectId] = useState<string | null>(null);
+  const [noteValue, setNoteValue] = useState(slot?.note ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+
+  // セルが切り替わったらノートをリセット
+  useEffect(() => {
+    setNoteValue(slot?.note ?? "");
+    setPendingSubjectId(null);
+    setConfirmDelete(false);
+  }, [slot?.dayOfWeek, slot?.period]);
 
   if (!slot) return null;
 
@@ -150,6 +159,24 @@ export function SlotDrawer({
 
     setSaving(false);
     onAttendanceChange(slot.dayOfWeek, slot.period, status);
+  }
+
+  async function handleNoteSave(note: string) {
+    if (!slot) return;
+    setNoteSaving(true);
+    const { id } = weekId ? { id: weekId } : await ensureWeek();
+    await fetch(`/api/weeks/${id}/overrides`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dayOfWeek: slot.dayOfWeek,
+        period: slot.period,
+        subjectId: slot.subject?.id ?? null,
+        note: note || null,
+        isCancelled: slot.isCancelled,
+      }),
+    });
+    setNoteSaving(false);
   }
 
   const DAY_LABELS = ["", "月", "火", "水", "木", "金"];
@@ -289,6 +316,22 @@ export function SlotDrawer({
                   </Button>
                 ))}
               </div>
+            </div>
+
+            <Separator className="my-4" />
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">メモ</h3>
+              <textarea
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition"
+                rows={2}
+                placeholder="例：骨学実習、グループ発表など"
+                value={noteValue}
+                onChange={(e) => setNoteValue(e.target.value)}
+                onBlur={(e) => handleNoteSave(e.target.value)}
+              />
+              {noteSaving && (
+                <p className="text-xs text-gray-400 mt-1">保存中...</p>
+              )}
             </div>
 
             {subjectAssignments.length > 0 && (

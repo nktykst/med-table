@@ -32,8 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       )
     );
 
-  // isEmpty=false かつ subjectId なし かつ isCancelled なし → override 削除のみ（パターンに戻す）
-  if (!subjectId && !isCancelled && !isEmpty) {
+  // 何も上書きしない場合 → override 削除のみ（パターンに戻す）
+  if (!subjectId && !isCancelled && !isEmpty && !note) {
     return NextResponse.json({ deleted: true });
   }
 
