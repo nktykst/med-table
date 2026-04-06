@@ -57,6 +57,7 @@ export async function resolveWeekSlots(
       dayOfWeek: slotOverrides.dayOfWeek,
       period: slotOverrides.period,
       isCancelled: slotOverrides.isCancelled,
+      isEmpty: slotOverrides.isEmpty,
       note: slotOverrides.note,
       subject: {
         id: subjects.id,
@@ -123,12 +124,17 @@ export async function resolveWeekSlots(
 
       if (override) {
         overrideId = override.id;
-        isCancelled = override.isCancelled ?? false;
-        note = override.note;
-        subject =
-          override.subject?.id
-            ? (override.subject as ResolvedSlot["subject"])
-            : null;
+        // isEmpty=true はパターンを空で上書き（subject=null のまま）
+        if (override.isEmpty) {
+          // subject=null のまま
+        } else {
+          isCancelled = override.isCancelled ?? false;
+          note = override.note;
+          subject =
+            override.subject?.id
+              ? (override.subject as ResolvedSlot["subject"])
+              : null;
+        }
       } else if (pSlot) {
         note = pSlot.note;
         subject =

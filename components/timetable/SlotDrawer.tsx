@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ExternalLink, CheckCircle2, Clock, XCircle, Plus, ListPlus } from "lucide-react";
+import { ExternalLink, CheckCircle2, Clock, XCircle, Plus, ListPlus, Trash2 } from "lucide-react";
 import { QuickAddSubject } from "./QuickAddSubject";
 import type { ResolvedSlot } from "@/lib/slot-resolver";
 import { TIME_SLOTS } from "@/lib/slot-resolver";
@@ -73,6 +73,7 @@ export function SlotDrawer({
   subjects,
 }: Props) {
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (!slot) return null;
 
@@ -104,6 +105,28 @@ export function SlotDrawer({
     const subject = subjects.find((s) => s.id === subjectId) ?? null;
     onSlotChange(slot.dayOfWeek, slot.period, subject);
     setSaving(false);
+  }
+
+  async function handleDelete() {
+    if (!slot) return;
+    setSaving(true);
+    const { id } = weekId ? { id: weekId } : await ensureWeek();
+
+    // isEmpty=true で override を作成 → パターンを空で上書き
+    await fetch(`/api/weeks/${id}/overrides`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dayOfWeek: slot.dayOfWeek,
+        period: slot.period,
+        isEmpty: true,
+      }),
+    });
+
+    onSlotChange(slot.dayOfWeek, slot.period, null);
+    setSaving(false);
+    setConfirmDelete(false);
+    onClose();
   }
 
   async function handleAttendance(status: string) {
@@ -138,6 +161,21 @@ export function SlotDrawer({
             <span>·</span>
             <span>第{slot.period}限</span>
             {timeSlot && <span>{timeSlot.start}〜{timeSlot.end}</span>}
+            {slot.subject && (
+              <div className="ml-auto">
+                {confirmDelete ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-red-500 text-xs">削除しますか?</span>
+                    <button onClick={handleDelete} disabled={saving} className="text-xs text-red-500 font-semibold">はい</button>
+                    <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-500">キャンセル</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmDelete(true)} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 科目セレクター */}

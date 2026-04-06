@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { TimetableGrid } from "@/components/timetable/TimetableGrid";
 import { MonthView } from "@/components/timetable/MonthView";
 import { BulkRegisterDrawer } from "@/components/timetable/BulkRegisterDrawer";
-import { CalendarDays, CalendarRange, ListPlus } from "lucide-react";
+import { ShareDrawer } from "@/components/timetable/ShareDrawer";
+import { CalendarDays, CalendarRange, ListPlus, Share2 } from "lucide-react";
 
 type View = "week" | "month";
 type Subject = { id: string; name: string; color: string };
@@ -13,10 +14,12 @@ export default function TimetablePage() {
   const [view, setView] = useState<View>("week");
   const [jumpDate, setJumpDate] = useState<string | undefined>();
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [bulkInitDay, setBulkInitDay] = useState<number | undefined>();
   const [bulkInitPeriod, setBulkInitPeriod] = useState<number | undefined>();
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const refreshRef = useRef<() => void>(() => {});
+  const [currentWeekId, setCurrentWeekId] = useState<string | null>(null);
+  const [currentWeekLabel, setCurrentWeekLabel] = useState("この週");
 
   useEffect(() => {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
@@ -27,12 +30,14 @@ export default function TimetablePage() {
     setView("week");
   }
 
-  // 一括登録完了後にグリッドをリフレッシュ
   function handleBulkDone() {
-    setJumpDate(undefined);
-    // TimetableGrid を key で再マウントして再フェッチ
-    setJumpDate(jumpDate ?? "__refresh__");
+    const t = jumpDate ?? "__refresh__";
+    setJumpDate(t);
     setTimeout(() => setJumpDate(undefined), 0);
+  }
+
+  function handleImportDone() {
+    handleBulkDone();
   }
 
   return (
@@ -58,27 +63,41 @@ export default function TimetablePage() {
           月
         </button>
 
-        {/* 一括登録ボタン */}
-        <button
-          onClick={() => setBulkOpen(true)}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
-        >
-          <ListPlus className="w-4 h-4" />
-          一括登録
-        </button>
+        <div className="ml-auto flex items-center gap-1">
+          {/* 共有ボタン */}
+          <button
+            onClick={() => setShareOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            <Share2 className="w-4 h-4" />
+            共有
+          </button>
+          {/* 一括登録ボタン */}
+          <button
+            onClick={() => setBulkOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            <ListPlus className="w-4 h-4" />
+            一括登録
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden">
         {view === "week" ? (
           <TimetableGrid
-          key={jumpDate}
-          initialDate={jumpDate}
-          onBulkRegister={(day, period) => {
-            setBulkInitDay(day);
-            setBulkInitPeriod(period);
-            setBulkOpen(true);
-          }}
-        />
+            key={jumpDate}
+            initialDate={jumpDate}
+            onBulkRegister={(day, period) => {
+              setBulkInitDay(day);
+              setBulkInitPeriod(period);
+              setBulkOpen(true);
+            }}
+            onWeekChange={(id, label) => {
+              setCurrentWeekId(id);
+              setCurrentWeekLabel(label);
+            }}
+          />
         ) : (
           <MonthView onSelectDate={handleSelectDate} />
         )}
@@ -92,6 +111,14 @@ export default function TimetablePage() {
         onDone={handleBulkDone}
         initialDayOfWeek={bulkInitDay}
         initialPeriod={bulkInitPeriod}
+      />
+
+      <ShareDrawer
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        currentWeekId={currentWeekId}
+        currentWeekLabel={currentWeekLabel}
+        onImportDone={handleImportDone}
       />
     </div>
   );

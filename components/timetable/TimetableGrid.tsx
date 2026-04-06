@@ -78,9 +78,11 @@ type Assignment = {
 export function TimetableGrid({
   initialDate,
   onBulkRegister,
+  onWeekChange,
 }: {
   initialDate?: string;
   onBulkRegister?: (dayOfWeek: number, period: number) => void;
+  onWeekChange?: (weekId: string | null, label: string) => void;
 }) {
   // DB に保存済みの週 (startDate → DbWeek)
   const [dbWeeks, setDbWeeks] = useState<Map<string, DbWeek>>(new Map());
@@ -118,10 +120,13 @@ export function TimetableGrid({
   // 週切替時にスロットを取得
   useEffect(() => {
     if (!vw) return;
+    const label = `第${vw.weekNumber}週${dbWeek?.label ? ` · ${dbWeek.label}` : ""}`;
     if (!dbWeek) {
       setSlots([]);
+      onWeekChange?.(null, label);
       return;
     }
+    onWeekChange?.(dbWeek.id, label);
     setLoading(true);
     fetch(`/api/weeks/${dbWeek.id}`)
       .then((r) => r.json())

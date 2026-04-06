@@ -80,6 +80,7 @@ export const slotOverrides = pgTable("slot_overrides", {
   }),
   note: text("note"),
   isCancelled: boolean("is_cancelled").default(false),
+  isEmpty: boolean("is_empty").default(false), // パターンスロットを空で上書き
 });
 
 export const assignments = pgTable("assignments", {
@@ -111,6 +112,19 @@ export const attendances = pgTable("attendances", {
   note: text("note"),
 });
 
+// 時間割共有スナップショット
+export const sharedTimetables = pgTable("shared_timetables", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").unique().notNull(), // 短い共有コード
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  slotsJson: text("slots_json").notNull(), // JSON スナップショット
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -131,3 +145,4 @@ export type SlotOverride = typeof slotOverrides.$inferSelect;
 export type Assignment = typeof assignments.$inferSelect;
 export type Attendance = typeof attendances.$inferSelect;
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type SharedTimetable = typeof sharedTimetables.$inferSelect;

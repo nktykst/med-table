@@ -10,7 +10,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id: weekId } = await params;
 
-  // Verify week ownership
   const [week] = await db
     .select()
     .from(weeks)
@@ -20,9 +19,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!week) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
-  const { dayOfWeek, period, subjectId, note, isCancelled } = body;
+  const { dayOfWeek, period, subjectId, note, isCancelled, isEmpty } = body;
 
-  // Delete existing override
+  // 既存 override を削除
   await db
     .delete(slotOverrides)
     .where(
@@ -33,7 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       )
     );
 
-  if (!subjectId && !isCancelled) {
+  // isEmpty=false かつ subjectId なし かつ isCancelled なし → override 削除のみ（パターンに戻す）
+  if (!subjectId && !isCancelled && !isEmpty) {
     return NextResponse.json({ deleted: true });
   }
 
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       subjectId: subjectId || null,
       note: note || null,
       isCancelled: isCancelled ?? false,
+      isEmpty: isEmpty ?? false,
     })
     .returning();
 
