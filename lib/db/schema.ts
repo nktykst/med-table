@@ -28,6 +28,7 @@ export const subjects = pgTable("subjects", {
   room: text("room"),
   isOnline: boolean("is_online").default(false),
   syllabusUrl: text("syllabus_url"),
+  isPublic: boolean("is_public").default(false),
 });
 
 export const weekPatterns = pgTable("week_patterns", {

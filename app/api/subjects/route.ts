@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       room: body.room || null,
       isOnline: body.isOnline ?? false,
       syllabusUrl: body.syllabusUrl || null,
+      isPublic: body.isPublic ?? false,
     })
     .returning();
 

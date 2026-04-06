@@ -19,6 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       room: body.room ?? null,
       isOnline: body.isOnline ?? false,
       syllabusUrl: body.syllabusUrl ?? null,
+      isPublic: body.isPublic ?? false,
     })
     .where(and(eq(subjects.id, id), eq(subjects.userId, session.user.id)))
     .returning();
