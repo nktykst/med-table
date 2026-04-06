@@ -14,6 +14,7 @@ import {
 } from "date-fns";
 import { ja } from "date-fns/locale";
 import type { MonthData, MonthSlot } from "@/app/api/timetable/month/route";
+import { getHolidaysInRange } from "@/lib/holidays";
 
 const DOW_LABELS = ["月", "火", "水", "木", "金", "土", "日"];
 
@@ -42,7 +43,11 @@ export function MonthView({ onSelectDate }: Props) {
   // カレンダーに表示する日を生成（月曜始まり、6週分）
   const monthStart = startOfMonth(baseDate);
   const calStart = startOfISOWeek(monthStart); // 月初の週の月曜
+  const calEnd = addDays(calStart, 41);
   const days: Date[] = Array.from({ length: 42 }, (_, i) => addDays(calStart, i));
+
+  // 表示期間の祝日マップ
+  const holidays = getHolidaysInRange(calStart, calEnd);
 
   function prevMonth() {
     setBaseDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -91,6 +96,7 @@ export function MonthView({ onSelectDate }: Props) {
             const isWeekend = day.getDay() === 6 || day.getDay() === 0;
             const slots = monthData[dateStr] ?? [];
             const today = isToday(day);
+            const holidayName = holidays.get(dateStr);
 
             // 同じ科目の重複を除いた色リスト（最大5個）
             const uniqueSubjects = Array.from(
@@ -100,12 +106,12 @@ export function MonthView({ onSelectDate }: Props) {
             return (
               <button
                 key={dateStr}
-                onClick={() => isCurrentMonth && !isWeekend && onSelectDate(dateStr)}
-                disabled={!isCurrentMonth || isWeekend}
+                onClick={() => isCurrentMonth && !isWeekend && !holidayName && onSelectDate(dateStr)}
+                disabled={!isCurrentMonth || isWeekend || !!holidayName}
                 className={`
                   bg-white min-h-[64px] p-1.5 text-left flex flex-col gap-1
                   ${!isCurrentMonth ? "opacity-30" : ""}
-                  ${isWeekend ? "bg-gray-50 cursor-default" : "hover:bg-blue-50 active:bg-blue-100 transition-colors"}
+                  ${holidayName ? "bg-red-50 cursor-default" : isWeekend ? "bg-gray-50 cursor-default" : "hover:bg-blue-50 active:bg-blue-100 transition-colors"}
                 `}
               >
                 {/* 日付 */}
@@ -114,6 +120,8 @@ export function MonthView({ onSelectDate }: Props) {
                     className={`text-xs font-medium leading-none w-6 h-6 flex items-center justify-center rounded-full ${
                       today
                         ? "bg-blue-600 text-white"
+                        : holidayName
+                        ? "text-red-500"
                         : isWeekend
                         ? day.getDay() === 6
                           ? "text-blue-400"
@@ -124,6 +132,12 @@ export function MonthView({ onSelectDate }: Props) {
                     {format(day, "d")}
                   </span>
                 </div>
+                {/* 祝日名 */}
+                {holidayName && isCurrentMonth && (
+                  <p className="text-[9px] text-red-400 leading-tight truncate w-full text-center">
+                    {holidayName}
+                  </p>
+                )}
 
                 {/* 授業ドット */}
                 {loading ? (

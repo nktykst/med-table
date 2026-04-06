@@ -8,6 +8,7 @@ import type { ResolvedSlot } from "@/lib/slot-resolver";
 import { TIME_SLOTS } from "@/lib/slot-resolver";
 import { format, addDays, parseISO } from "date-fns";
 import { ja } from "date-fns/locale";
+import { getHolidaysInRange } from "@/lib/holidays";
 
 const DAYS = ["月", "火", "水", "木", "金"];
 
@@ -206,6 +207,16 @@ export function TimetableGrid({
     : [];
   const endDate = vw ? format(addDays(parseISO(vw.startDate), 4), "M/d", { locale: ja }) : "";
 
+  // 祝日マップ: "yyyy-MM-dd" → 祝日名
+  const weekHolidays = vw
+    ? getHolidaysInRange(parseISO(vw.startDate), addDays(parseISO(vw.startDate), 4))
+    : new Map<string, string>();
+  const weekDateKeys = vw
+    ? Array.from({ length: 5 }, (_, i) =>
+        format(addDays(parseISO(vw.startDate), i), "yyyy-MM-dd")
+      )
+    : [];
+
   const weekAssignments = vw
     ? assignments.filter((a) => {
         if (!a.dueDate || a.isDone) return false;
@@ -326,12 +337,24 @@ export function TimetableGrid({
             <div className="min-w-0">
               <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: "2.5rem repeat(5, 1fr)" }}>
                 <div />
-                {DAYS.map((day, i) => (
-                  <div key={day} className="text-center">
-                    <p className="text-xs font-semibold text-gray-600">{day}</p>
-                    <p className="text-xs text-gray-400">{weekDates[i]}</p>
-                  </div>
-                ))}
+                {DAYS.map((day, i) => {
+                  const holidayName = weekHolidays.get(weekDateKeys[i]);
+                  return (
+                    <div key={day} className="text-center">
+                      <p className={`text-xs font-semibold ${holidayName ? "text-red-500" : "text-gray-600"}`}>
+                        {day}
+                      </p>
+                      <p className={`text-xs ${holidayName ? "text-red-400" : "text-gray-400"}`}>
+                        {weekDates[i]}
+                      </p>
+                      {holidayName && (
+                        <p className="text-[9px] text-red-400 leading-tight truncate px-0.5">
+                          {holidayName}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {TIME_SLOTS.map(({ period, start }) => (
