@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { format } from "date-fns";
 import { TimetableGrid } from "@/components/timetable/TimetableGrid";
 import { MonthView } from "@/components/timetable/MonthView";
 import { BulkRegisterDrawer } from "@/components/timetable/BulkRegisterDrawer";
@@ -20,6 +21,9 @@ export default function TimetablePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [currentWeekId, setCurrentWeekId] = useState<string | null>(null);
   const [currentWeekLabel, setCurrentWeekLabel] = useState("この週");
+  const [currentWeekStart, setCurrentWeekStart] = useState<string>(
+    format(new Date(), "yyyy-MM-dd")
+  );
 
   useEffect(() => {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
@@ -93,9 +97,10 @@ export default function TimetablePage() {
               setBulkInitPeriod(period);
               setBulkOpen(true);
             }}
-            onWeekChange={(id, label) => {
+            onWeekChange={(id, label, startDate) => {
               setCurrentWeekId(id);
               setCurrentWeekLabel(label);
+              setCurrentWeekStart(startDate);
             }}
           />
         ) : (
@@ -116,7 +121,7 @@ export default function TimetablePage() {
       <ShareDrawer
         open={shareOpen}
         onClose={() => setShareOpen(false)}
-        currentWeekId={currentWeekId}
+        currentWeekStart={currentWeekStart}
         currentWeekLabel={currentWeekLabel}
         onImportDone={handleImportDone}
       />

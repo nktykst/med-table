@@ -18,24 +18,22 @@ function getAcademicWeekNumber(startDate: string): number {
 }
 
 // コードを使って自分の時間割にインポート
-// 科目は名前でマッチング、なければ新規作成
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
 
   const body = await req.json();
-  const { code, startDate, repeatWeeks = 1 } = body as {
+  const { code, startDate, repeatCycles = 1 } = body as {
     code: string;
     startDate: string; // yyyy-MM-dd (Monday)
-    repeatWeeks: number;
+    repeatCycles: number; // ブロック全体を何回繰り返すか
   };
 
   if (!code || !startDate) {
     return NextResponse.json({ error: "code と startDate が必要です" }, { status: 400 });
   }
 
-  // 共有データを取得
   const [shared] = await db
     .select()
     .from(sharedTimetables)
@@ -46,13 +44,14 @@ export async function POST(req: NextRequest) {
 
   const slots: SharedSlot[] = JSON.parse(shared.slotsJson);
 
-  // 既存の自分の科目を名前でキャッシュ
-  const mySubjects = await db
-    .select()
-    .from(subjects)
-    .where(eq(subjects.userId, userId));
+  // ブロック全体の週数を計算
+  const totalWeeks = slots.length > 0
+    ? Math.max(...slots.map((s) => s.weekOffset)) + 1
+    : 0;
 
-  const subjectCache = new Map<string, string>(); // name → id
+  // 既存の自分の科目を名前でキャッシュ
+  const mySubjects = await db.select().from(subjects).where(eq(subjects.userId, userId));
+  const subjectCache = new Map<string, string>();
   mySubjects.forEach((s) => subjectCache.set(s.name.toLowerCase(), s.id));
 
   // 科目名から id を解決（なければ作成）
@@ -77,31 +76,36 @@ export async function POST(req: NextRequest) {
 
   let importedCount = 0;
 
-  for (let i = 0; i < repeatWeeks; i++) {
-    const monday = format(addDays(parseISO(startDate), i * 7), "yyyy-MM-dd");
-
-    // 週レコードを取得または作成
-    let [week] = await db
-      .select()
-      .from(weeks)
-      .where(and(eq(weeks.userId, session.user.id), eq(weeks.startDate, monday)))
-      .limit(1);
-
-    if (!week) {
-      [week] = await db
-        .insert(weeks)
-        .values({
-          userId: session.user.id,
-          weekNumber: getAcademicWeekNumber(monday),
-          startDate: monday,
-        })
-        .returning();
-    }
+  for (let cycle = 0; cycle < repeatCycles; cycle++) {
+    const cycleOffsetWeeks = cycle * totalWeeks;
 
     for (const slot of slots) {
+      const absoluteOffset = cycleOffsetWeeks + slot.weekOffset;
+      const monday = format(
+        addDays(parseISO(startDate), absoluteOffset * 7),
+        "yyyy-MM-dd"
+      );
+
+      // 週レコードを取得または作成
+      let [week] = await db
+        .select()
+        .from(weeks)
+        .where(and(eq(weeks.userId, userId), eq(weeks.startDate, monday)))
+        .limit(1);
+
+      if (!week) {
+        [week] = await db
+          .insert(weeks)
+          .values({
+            userId,
+            weekNumber: getAcademicWeekNumber(monday),
+            startDate: monday,
+          })
+          .returning();
+      }
+
       const subjectId = await resolveSubjectId(slot);
 
-      // 既存 override を削除してから挿入
       await db
         .delete(slotOverrides)
         .where(

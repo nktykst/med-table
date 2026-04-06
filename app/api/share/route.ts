@@ -8,7 +8,8 @@ import {
   patternSlots,
   subjects,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
+import { parseISO } from "date-fns";
 
 function randomCode(len = 8) {
   const chars = "abcdefghijkmnpqrstuvwxyz23456789";
@@ -18,6 +19,7 @@ function randomCode(len = 8) {
 }
 
 export type SharedSlot = {
+  weekOffset: number; // 0-based: 0 = 開始週, 1 = 翌週, ...
   dayOfWeek: number;
   period: number;
   subjectName: string;
@@ -26,15 +28,11 @@ export type SharedSlot = {
   isOnline: boolean;
 };
 
-// 週のスロットをスナップショット取得（resolver と同様のロジック）
-async function snapshotWeek(weekId: string, userId: string): Promise<SharedSlot[]> {
-  const [week] = await db
-    .select()
-    .from(weeks)
-    .where(and(eq(weeks.id, weekId), eq(weeks.userId, userId)))
-    .limit(1);
-  if (!week) return [];
-
+// 週のスロットをスナップショット取得
+async function snapshotWeek(
+  weekId: string,
+  patternId: string | null
+): Promise<Omit<SharedSlot, "weekOffset">[]> {
   const overrides = await db
     .select({
       dayOfWeek: slotOverrides.dayOfWeek,
@@ -50,7 +48,7 @@ async function snapshotWeek(weekId: string, userId: string): Promise<SharedSlot[
     .leftJoin(subjects, eq(slotOverrides.subjectId, subjects.id))
     .where(eq(slotOverrides.weekId, weekId));
 
-  const pSlots = week.patternId
+  const pSlots = patternId
     ? await db
         .select({
           dayOfWeek: patternSlots.dayOfWeek,
@@ -62,42 +60,69 @@ async function snapshotWeek(weekId: string, userId: string): Promise<SharedSlot[
         })
         .from(patternSlots)
         .leftJoin(subjects, eq(patternSlots.subjectId, subjects.id))
-        .where(eq(patternSlots.patternId, week.patternId!))
+        .where(eq(patternSlots.patternId, patternId))
     : [];
 
-  const result: SharedSlot[] = [];
+  const result: Omit<SharedSlot, "weekOffset">[] = [];
 
   for (let day = 1; day <= 5; day++) {
     for (let period = 1; period <= 7; period++) {
       const ov = overrides.find((o) => o.dayOfWeek === day && o.period === period);
       const ps = pSlots.find((s) => s.dayOfWeek === day && s.period === period);
 
-      let slot: SharedSlot | null = null;
-
       if (ov) {
         if (!ov.isEmpty && !ov.isCancelled && ov.subjectName) {
-          slot = {
+          result.push({
             dayOfWeek: day,
             period,
             subjectName: ov.subjectName,
             subjectColor: ov.subjectColor ?? "#60a5fa",
             room: ov.room ?? null,
             isOnline: ov.isOnline ?? false,
-          };
+          });
         }
       } else if (ps?.subjectName) {
-        slot = {
+        result.push({
           dayOfWeek: day,
           period,
           subjectName: ps.subjectName,
           subjectColor: ps.subjectColor ?? "#60a5fa",
           room: ps.room ?? null,
           isOnline: ps.isOnline ?? false,
-        };
+        });
       }
-
-      if (slot) result.push(slot);
     }
+  }
+
+  return result;
+}
+
+// 日付範囲のスロットをまとめてスナップショット
+async function snapshotDateRange(
+  startDate: string,
+  endDate: string,
+  userId: string
+): Promise<SharedSlot[]> {
+  const dbWeeks = await db
+    .select()
+    .from(weeks)
+    .where(
+      and(
+        eq(weeks.userId, userId),
+        gte(weeks.startDate, startDate),
+        lte(weeks.startDate, endDate)
+      )
+    );
+
+  const startMs = parseISO(startDate).getTime();
+  const result: SharedSlot[] = [];
+
+  for (const week of dbWeeks) {
+    const weekOffset = Math.round(
+      (parseISO(week.startDate).getTime() - startMs) / (7 * 86400000)
+    );
+    const slots = await snapshotWeek(week.id, week.patternId);
+    result.push(...slots.map((s) => ({ ...s, weekOffset })));
   }
 
   return result;
@@ -122,22 +147,24 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { weekId, name, description } = body;
+  const { startDate, endDate, name, description } = body as {
+    startDate: string;
+    endDate: string;
+    name?: string;
+    description?: string;
+  };
 
-  let slots: SharedSlot[] = [];
-
-  if (weekId) {
-    slots = await snapshotWeek(weekId, session.user.id);
-  } else {
-    return NextResponse.json({ error: "weekId is required" }, { status: 400 });
+  if (!startDate || !endDate) {
+    return NextResponse.json({ error: "startDate と endDate が必要です" }, { status: 400 });
   }
 
+  const slots = await snapshotDateRange(startDate, endDate, session.user.id);
+
   if (slots.length === 0) {
-    return NextResponse.json({ error: "登録されている授業がありません" }, { status: 400 });
+    return NextResponse.json({ error: "指定期間に登録されている授業がありません" }, { status: 400 });
   }
 
   let code = randomCode();
-  // コード衝突回避
   for (let i = 0; i < 5; i++) {
     const [exists] = await db
       .select()
@@ -147,6 +174,9 @@ export async function POST(req: NextRequest) {
     if (!exists) break;
     code = randomCode();
   }
+
+  const totalWeeks =
+    Math.max(...slots.map((s) => s.weekOffset)) + 1;
 
   const [row] = await db
     .insert(sharedTimetables)
@@ -159,5 +189,5 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  return NextResponse.json(row, { status: 201 });
+  return NextResponse.json({ ...row, totalWeeks }, { status: 201 });
 }

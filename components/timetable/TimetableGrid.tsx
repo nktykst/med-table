@@ -82,7 +82,7 @@ export function TimetableGrid({
 }: {
   initialDate?: string;
   onBulkRegister?: (dayOfWeek: number, period: number) => void;
-  onWeekChange?: (weekId: string | null, label: string) => void;
+  onWeekChange?: (weekId: string | null, label: string, startDate: string) => void;
 }) {
   // DB に保存済みの週 (startDate → DbWeek)
   const [dbWeeks, setDbWeeks] = useState<Map<string, DbWeek>>(new Map());
@@ -123,10 +123,10 @@ export function TimetableGrid({
     const label = `第${vw.weekNumber}週${dbWeek?.label ? ` · ${dbWeek.label}` : ""}`;
     if (!dbWeek) {
       setSlots([]);
-      onWeekChange?.(null, label);
+      onWeekChange?.(null, label, vw.startDate);
       return;
     }
-    onWeekChange?.(dbWeek.id, label);
+    onWeekChange?.(dbWeek.id, label, vw.startDate);
     setLoading(true);
     fetch(`/api/weeks/${dbWeek.id}`)
       .then((r) => r.json())
