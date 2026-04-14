@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Calendar, BookOpen, Settings } from "lucide-react";
+import { NavItem } from "./NavItem";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -22,22 +22,3 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   );
 }
 
-function NavItem({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors py-1 px-4"
-    >
-      {icon}
-      <span className="text-xs font-medium">{label}</span>
-    </Link>
-  );
-}

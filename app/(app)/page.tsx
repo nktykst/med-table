@@ -30,6 +30,24 @@ export default function TimetablePage() {
     fetch("/api/subjects").then((r) => r.json()).then(setSubjects);
   }, []);
 
+  useEffect(() => {
+    function jumpToToday() {
+      const today = format(new Date(), "yyyy-MM-dd");
+      setView("week");
+      setJumpDate(today);
+      setCurrentWeekStart(today);
+      setRefreshKey((k) => k + 1);
+    }
+
+    if (typeof window !== "undefined" && sessionStorage.getItem("timetable:jump-today")) {
+      sessionStorage.removeItem("timetable:jump-today");
+      jumpToToday();
+    }
+
+    window.addEventListener("timetable:jump-today", jumpToToday);
+    return () => window.removeEventListener("timetable:jump-today", jumpToToday);
+  }, []);
+
   function handleSelectDate(date: string) {
     setJumpDate(date);
     setView("week");
